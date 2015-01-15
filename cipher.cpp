@@ -11,7 +11,7 @@ vector<byte> doXor(const vector<byte>, const vector<byte>);
 vector<byte> toBytes(const string);
 string asText(const vector<byte>);
 
-string asHex(const vector<byte>);
+string asHex(const vector<byte>, bool withIndex=false);
 
 vector<byte> hexToBytes(const string);
 byte hexPairToByte(const string);
@@ -20,20 +20,44 @@ int hexToDigit(char);
 string byteToHex(byte);
 char digitToHex(int);
 
+string nthByte(const vector<byte>, int);
+
+int bytesInHex(const string);
+vector<byte> zeroify(const vector<byte> data, bool (*predicate)(byte));
+
 int main(int argc, char* argv[])
 {
-	auto duskBytes = toBytes("dusk");
-	cout << "Dusk bytes are: " << asHex(duskBytes) << endl;
+	string cipher1 = "315c4eeaa8b5f8aaf9174145bf43e1784b8fa00dc71d885a804e5ee9fa40b16349c146fb778cdf2d3aff021dfff5b403b510d0d0455468aeb98622b137dae857553ccd8883a7bc37520e06e515d22c954eba5025b8cc57ee59418ce7dc6bc41556bdb36bbca3e8774301fbcaa3b83b220809560987815f65286764703de0f3d524400a19b159610b11ef3e";
+	string cipher2 = "234c02ecbbfbafa3ed18510abd11fa724fcda2018a1a8342cf064bbde548b12b07df44ba7191d9606ef4081ffde5ad46a5069d9f7f543bedb9c861bf29c7e205132eda9382b0bc2c5c4b45f919cf3a9f1cb74151f6d551f4480c82b2cb24cc5b028aa76eb7b4ab24171ab3cdadb8356f";
+	
+	auto xoredBytes = doXor(hexToBytes(cipher1), hexToBytes(cipher2));
+	cout << "Xored bytes are: " << asHex(xoredBytes, true) << endl;
+	cout << "Byte with index 12 is: " << nthByte(xoredBytes, 12) << endl;
+	
 
-	auto dawnBytes = toBytes("dawn");
-	auto encryptedDawnBytes = hexToBytes("e7e53f36");
+	auto zeroified = zeroify(xoredBytes, 
+		[](byte b) {
+			return ((int)(b) - 65) < 0 || ((int)(b) - 122) > 0;
+		});
+	cout << asHex(zeroified, true) << endl;
+}
 
-	auto keyBytes = doXor(dawnBytes, encryptedDawnBytes);
-	cout << "Key bytes are: " << asHex(keyBytes) << endl;
+string nthByte(const vector<byte> data, int index)
+{
+	return byteToHex(data[index]);
+}
 
-	auto encryptedDuskBytes = doXor(keyBytes, duskBytes);
+vector<byte> zeroify(const vector<byte> data, bool (*predicate)(byte))
+{
+	vector<byte> result;
+	result.reserve(data.size());
 
-	cout << "Encrypted dusk is: " << asHex(encryptedDuskBytes) << endl;
+	for (byte b : data)
+	{	
+		result.push_back(predicate(b) ? 0 : b);
+	}
+
+	return result;
 }
 
 vector<byte> doXor(const vector<byte> first, const vector<byte> second)
@@ -68,15 +92,31 @@ vector<byte> toBytes(const string text)
 	return result;
 }
 
-string asHex(const vector<byte> data)
+template<typename IteratorT, typename FunctionT>
+void for_each_indexed(IteratorT first, IteratorT last, FunctionT action)
+{
+	int index = 0;
+	for (; first != last; ++index, ++first)
+	{
+		action(*first, index);
+	}
+}
+
+string asHex(const vector<byte> data, bool withIndex)
 {
 	string result;
+	result.reserve(data.size() * 2);
 
-	for (byte b: data)
-	{
-		result += byteToHex(b) + " ";
-	}
+	for_each_indexed(data.begin(), data.end(), 
+		[&withIndex, &result](byte b, int index) 
+		{
+			if (withIndex) {
+				result += to_string(index) + ":";
+			}
 
+			result += byteToHex(b) + "   ";
+		});
+	
 	return result;
 }
 
@@ -149,5 +189,10 @@ string asText(const vector<byte> bytes)
 	}
 
 	return result;
+}
+
+int bytesInHex(const string hexString)
+{
+	return hexString.size() / 2;
 }
 
