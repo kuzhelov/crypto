@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <algorithm>
 #include <string>
 
 using namespace std;
@@ -152,6 +153,19 @@ byte getNthByteOfKey(int byteIndex, const vector<bytes>& ciphers)
 	return encodedSpace ^ space;
 }
 
+vector<byte> deriveKey(int keySize, const vector<bytes>& ciphers)
+{
+	vector<byte> key;
+	key.reserve(keySize);
+
+	for (int byteIndex = 0; byteIndex < keySize; ++byteIndex) 
+	{
+		key.push_back(getNthByteOfKey(byteIndex, ciphers));
+	}
+
+	return key;
+}
+
 int main(int argc, char* argv[])
 {
 	string cipher0 = "315c4eeaa8b5f8aaf9174145bf43e1784b8fa00dc71d885a804e5ee9fa40b16349c146fb778cdf2d3aff021dfff5b403b510d0d0455468aeb98622b137dae857553ccd8883a7bc37520e06e515d22c954eba5025b8cc57ee59418ce7dc6bc41556bdb36bbca3e8774301fbcaa3b83b220809560987815f65286764703de0f3d524400a19b159610b11ef3e";
@@ -167,7 +181,6 @@ int main(int argc, char* argv[])
 
 
 	string passPhrase = "32510ba9babebbbefd001547a810e67149caee11d945cd7fc81a05e9f85aac650e9052ba6a8cd8257bf14d13e6f0a803b54fde9e77472dbff89d71b57bddef121336cb85ccb8f3315f4b52e301d16e9f52f904";
-	cout << "Bytes in pass phrase: " << (passPhrase.size() / 2) << endl;
 
 	vector<string> ciphers = {
 		cipher0,
@@ -181,53 +194,16 @@ int main(int argc, char* argv[])
 		cipher8,
 		cipher9
 	};
-
-	vector<byte> key(6, 0);
-	key[0] = 0x66;
-	key[1] = 0x39;
-	key[2] = 0x6e;
-	key[3] = 0x89;
-	key[4] = 0xc9;
-	key[5] = 0xdb;
-
-	string phrase(passPhrase.begin(), passPhrase.begin() + 6);
-	auto phraseBytes = hexToBytes(phrase);
-
-	auto decyphered = doXor(phraseBytes, key);
-	cout << "Deciphered: " << asText(decyphered) << endl;
 	
-	vector<bytes> cipherBytes = hexesToBytes(ciphers);
+	auto passPhraseBytes = hexToBytes(passPhrase);
+	auto keyBytes = deriveKey(
+		passPhraseBytes.size(),	// key size
+		hexesToBytes(ciphers));	// ciphers as bytes
 
-	int byteIndex = 7;
-	byte keyByte = getNthByteOfKey(byteIndex, cipherBytes);
-	cout << "Nth byte is: " << byteToHex(keyByte) << endl; 
+	cout << "Key bytes are: " << asHex(keyBytes, true) << endl;
 
-	int cipherIndexWithSpace = findCipherWithSpaceAt(0, cipherBytes);
-	cout << "Cipher with space is: " << cipherIndexWithSpace << endl;
-
-	auto testResults = testAgainst(
-		cipherBytes,
-		1, 	// cipher index
-		5,	// byte index
-		[] (byte first, byte second) {
-			auto b = first ^ second;
-			return isLetter(b);
-		});
-
-	printTestResults(testResults);
-
-	string first = cipher9;
-	string second = cipher1;
-
-	cout << "Ciphered bytes of first are: " << asHex(hexToBytes(first), true) << endl;
-	cout << "------------------" << endl;
-
-	auto xoredBytes = doXor(hexToBytes(first), hexToBytes(second));
-	auto zeroified = zeroify(xoredBytes, 
-		[](byte b) {
-			return !isLetter(b);
-		});
-	cout << asHex(zeroified, true) << endl;
+	auto decryptedBytes = doXor(keyBytes, passPhraseBytes);
+	cout << "Decrypted bytes are: " << asText(decryptedBytes) << endl;
 }
 
 string nthByte(const vector<byte> data, int index)
